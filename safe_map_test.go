@@ -1,6 +1,8 @@
 package cmap
 
 import (
+	"encoding/json"
+	"slices"
 	"testing"
 )
 
@@ -18,6 +20,21 @@ func TestSafeMap_View(t *testing.T) {
 		result = append(result, k)
 	}
 
+	// 比较两个字符串切片是否相等 忽略顺序
+	sliceEqual := func(a, b []string) bool {
+		if len(a) != len(b) {
+			return false
+		}
+
+		for _, v := range a {
+			if !slices.Contains(b, v) {
+				return false
+			}
+		}
+
+		return true
+	}
+
 	// 调用 View 方法
 	safeMap.View(verifyFn)
 
@@ -28,23 +45,8 @@ func TestSafeMap_View(t *testing.T) {
 	}
 }
 
-// 比较两个字符串切片是否相等
-func sliceEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 // 测试用例：正常情况
-func TestSafeMapFind(t *testing.T) {
+func TestSafeMap_Find(t *testing.T) {
 	// 创建 SafeMap 实例，并设置初始键值对
 	safeMap := NewSafeMap[string, int]()
 	safeMap.Set("key1", 10)
@@ -65,7 +67,7 @@ func TestSafeMapFind(t *testing.T) {
 }
 
 // 测试用例：找不到的键
-func TestSafeMapFindNotFound(t *testing.T) {
+func TestSafeMap_FindNotFound(t *testing.T) {
 	// 创建 SafeMap 实例
 	safeMap := NewSafeMap[string, int]()
 
@@ -79,7 +81,7 @@ func TestSafeMapFindNotFound(t *testing.T) {
 }
 
 // 测试用例：空的键切片
-func TestSafeMapFindEmptyKeys(t *testing.T) {
+func TestSafeMap_FindEmptyKeys(t *testing.T) {
 	// 创建 SafeMap 实例
 	safeMap := NewSafeMap[string, int]()
 
@@ -91,7 +93,7 @@ func TestSafeMapFindEmptyKeys(t *testing.T) {
 }
 
 // TestUpdate 测试 Update 函数
-func TestUpdate(t *testing.T) {
+func TestSafeMap_Update(t *testing.T) {
 	// 创建一个 SafeMap 实例
 	safeMap := NewSafeMap[string, int]()
 
@@ -114,5 +116,49 @@ func TestUpdate(t *testing.T) {
 	value, ok := safeMap.Get("key1")
 	if !ok || value != 10 {
 		t.Errorf("SafeMap 中的数据未被正确更新")
+	}
+}
+
+// TestMarshalJSON 测试 MarshalJSON 方法
+func TestSafeMap_MarshalJSON(t *testing.T) {
+	// 初始化测试数据
+	safeMap := NewSafeMap[string, int]()
+	safeMap.Set("key1", 1)
+	safeMap.Set("key2", 2)
+
+	// 调用 MarshalJSON 方法
+	jsonData, err := safeMap.MarshalJSON()
+
+	// 断言错误为 nil
+	if err != nil {
+		t.Errorf("MarshalJSON 方法错误: %v", err)
+	}
+
+	// 断言生成的 JSON 数据正确
+	expectedJSON := `{"key1":1,"key2":2}`
+	if string(jsonData) != expectedJSON {
+		t.Errorf("MarshalJSON 方法生成的 JSON 数据不正确, 期望: %s, 实际: %s", expectedJSON, jsonData)
+	}
+}
+
+// TestUnmarshalJSON 测试 UnmarshalJSON 函数
+func TestSafeMap_UnmarshalJSON(t *testing.T) {
+	// 创建一个 SafeMap 实例
+	safeMap := NewSafeMap[string, int]()
+
+	// 准备测试数据
+	jsonData := []byte(`{"key1": 10, "key2": 20}`)
+
+	// 调用 Unmarshal 函数
+	err := json.Unmarshal(jsonData, &safeMap)
+
+	// 检查错误是否为 nil
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	// 检查解包后的数据是否正确
+	if safeMap.m["key1"] != 10 || safeMap.m["key2"] != 20 {
+		t.Errorf("Expected map values: key1=10, key2=20, but got: %v", safeMap.m)
 	}
 }

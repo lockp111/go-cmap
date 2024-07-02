@@ -3,6 +3,7 @@ package cmap
 import (
 	"encoding/json"
 	"hash/fnv"
+	"slices"
 	"sort"
 	"strconv"
 	"testing"
@@ -320,7 +321,7 @@ func TestIterCb(t *testing.T) {
 	}
 }
 
-func TestGetMap(t *testing.T) {
+func TestItems(t *testing.T) {
 	m := New[Animal]()
 
 	// Insert 100 elements.
@@ -328,7 +329,7 @@ func TestGetMap(t *testing.T) {
 		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
 	}
 
-	items := m.GetMap()
+	items := m.Items()
 
 	if len(items) != 100 {
 		t.Error("We should have counted 100 elements.")
@@ -428,6 +429,22 @@ func TestKeys(t *testing.T) {
 	}
 }
 
+func TestValues(t *testing.T) {
+	m := New[int]()
+	tests := []int{1, 3, 5, 7, 9, 2, 4, 6, 8, 0}
+
+	for _, v := range tests {
+		m.Set(strconv.Itoa(v), v)
+	}
+
+	values := m.Values()
+	for _, v := range tests {
+		if !slices.Contains(values, v) {
+			t.Errorf("We should have %d.", v)
+		}
+	}
+}
+
 func TestMInsert(t *testing.T) {
 	animals := map[string]Animal{
 		"elephant": {"elephant"},
@@ -504,7 +521,7 @@ func TestKeysWhenRemoving(t *testing.T) {
 	// Remove 10 elements concurrently.
 	Num := 10
 	for i := 0; i < Num; i++ {
-		go func(c *ConcurrentMap[string, Animal], n int) {
+		go func(c ConcurrentMap[string, Animal], n int) {
 			c.Remove(strconv.Itoa(n))
 		}(m, i)
 	}
@@ -564,5 +581,51 @@ func TestUnDrainedIterBuffered(t *testing.T) {
 
 	if counter != 200 {
 		t.Error("We should have counted 200 elements.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	type test struct {
+		name    string
+		jsonStr string
+		wantErr bool
+	}
+
+	tests := []test{
+		{
+			name:    "normal",
+			jsonStr: `{"key1":"value1", "key2":"value2"}`,
+			wantErr: false,
+		},
+		{
+			name:    "empty JSON",
+			jsonStr: `{}`,
+			wantErr: false,
+		},
+		{
+			name:    "invalid JSON",
+			jsonStr: `{"key1":"value1", "key2":}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New[string]()
+			err := json.Unmarshal([]byte(tt.jsonStr), &m)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				jsonMap := make(map[string]string)
+				json.Unmarshal([]byte(tt.jsonStr), &jsonMap)
+				for key, val := range jsonMap {
+					if mVal, ok := m.Get(key); !ok || mVal != val {
+						t.Errorf("UnmarshalJSON() got = %v, want %v", mVal, val)
+					}
+				}
+			}
+		})
 	}
 }
