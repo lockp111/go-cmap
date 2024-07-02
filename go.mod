@@ -1,3 +1,3 @@
-module github.com/lockp111/concurrent-map
+module github.com/lockp111/cmap
 
 go 1.21

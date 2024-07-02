@@ -1,6 +1,6 @@
-# concurrent map [![Build Status](https://travis-ci.com/lockp111/concurrent-map.svg?branch=master)](https://travis-ci.com/lockp111/concurrent-map)
+# concurrent map [![Build Status](https://travis-ci.com/lockp111/go-cmap.svg?branch=master)](https://travis-ci.com/lockp111/go-cmap)
 
-As explained [here](http://golang.org/doc/faq#atomic_maps) and [here](http://blog.golang.org/go-maps-in-action), the `map` type in Go doesn't support concurrent reads and writes. `concurrent-map` provides a high-performance solution to this by sharding the map with minimal time spent waiting for locks.
+As explained [here](http://golang.org/doc/faq#atomic_maps) and [here](http://blog.golang.org/go-maps-in-action), the `map` type in Go doesn't support concurrent reads and writes. `go-cmap` provides a high-performance solution to this by sharding the map with minimal time spent waiting for locks.
 
 Prior to Go 1.9, there was no concurrent map implementation in the stdlib. In Go 1.9, `sync.Map` was introduced. The new `sync.Map` has a few key differences from this map. The stdlib `sync.Map` is designed for append-only scenarios. So if you want to use the map for something more like in-memory db, you might benefit from using our version. You can read more about it in the golang repo, for example [here](https://github.com/golang/go/issues/21035) and [here](https://stackoverflow.com/questions/11063473/map-with-concurrent-access)
 
@@ -14,13 +14,13 @@ Import the package:
 
 ```go
 import (
-	"github.com/lockp111/concurrent-map"
+	"github.com/lockp111/go-cmap"
 )
 
 ```
 
 ```bash
-go get "github.com/lockp111/concurrent-map"
+go get "github.com/lockp111/go-cmap"
 ```
 
 The package is now imported under the "cmap" namespace.
@@ -43,12 +43,12 @@ The package is now imported under the "cmap" namespace.
 
 ```
 
-For more examples have a look at concurrent_map_test.go.
+For more examples have a look at cmap_test.go.
 
 Running tests:
 
 ```bash
-go test "github.com/lockp111/concurrent-map"
+go test "github.com/lockp111/go-cmap"
 ```
 
 ## Guidelines for contributing
@@ -64,4 +64,4 @@ Contributions are highly welcome. In order for a contribution to be merged, plea
 - [中文说明](./README-zh.md)
 
 ## License
-MIT (see [LICENSE](https://github.com/lockp111/concurrent-map/blob/master/LICENSE) file)
+MIT (see [LICENSE](https://github.com/lockp111/go-cmap/blob/master/LICENSE) file)
