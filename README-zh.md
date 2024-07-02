@@ -1,9 +1,13 @@
-# concurrent map [![Build Status](https://travis-ci.com/orcaman/concurrent-map.svg?branch=master)](https://travis-ci.com/orcaman/concurrent-map)
+# concurrent map [![Build Status](https://travis-ci.com/lockp111/concurrent-map.svg?branch=master)](https://travis-ci.com/lockp111/concurrent-map)
 
 正如 [这里](http://golang.org/doc/faq#atomic_maps) 和 [这里](http://blog.golang.org/go-maps-in-action)所描述的, Go语言原生的`map`类型并不支持并发读写。`concurrent-map`提供了一种高性能的解决方案:通过对内部`map`进行分片，降低锁粒度，从而达到最少的锁等待时间(锁冲突)
 
 在Go 1.9之前，go语言标准库中并没有实现并发`map`。在Go 1.9中，引入了`sync.Map`。新的`sync.Map`与此`concurrent-map`有几个关键区别。标准库中的`sync.Map`是专为`append-only`场景设计的。因此，如果您想将`Map`用于一个类似内存数据库，那么使用我们的版本可能会受益。你可以在golang repo上读到更多，[这里](https://github.com/golang/go/issues/21035) and [这里](https://stackoverflow.com/questions/11063473/map-with-concurrent-access)
 ***译注:`sync.Map`在读多写少性能比较好，否则并发性能很差***
+
+## 为什么fork
+因为我觉得原作者写的一些方法不太友好，所以我自己重构了一个版本，并添加了一个独立的线程安全map。
+在不需要高并发的情况下，可以使用更简单的线程安全map。
 
 ## 用法
 
@@ -11,13 +15,13 @@
 
 ```go
 import (
-	"github.com/orcaman/concurrent-map/v2"
+	"github.com/lockp111/concurrent-map"
 )
 
 ```
 
 ```bash
-go get "github.com/orcaman/concurrent-map/v2"
+go get "github.com/lockp111/concurrent-map"
 ```
 
 现在包被导入到了`cmap`命名空间下
@@ -46,7 +50,7 @@ go get "github.com/orcaman/concurrent-map/v2"
 运行测试:
 
 ```bash
-go test "github.com/orcaman/concurrent-map/v2"
+go test "github.com/lockp111/concurrent-map"
 ```
 
 ## 贡献说明
@@ -59,4 +63,4 @@ go test "github.com/orcaman/concurrent-map/v2"
 - 一般来说，我们希望`concurrent-map`尽可能简单，且与原生的`map`有相似的操作。当你新建issue时请注意这一点。
 
 ## 许可证
-MIT (see [LICENSE](https://github.com/orcaman/concurrent-map/blob/master/LICENSE) file)
+MIT (see [LICENSE](https://github.com/lockp111/concurrent-map/blob/master/LICENSE) file)

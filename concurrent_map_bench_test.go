@@ -12,45 +12,6 @@ func (i Integer) String() string {
 	return strconv.Itoa(int(i))
 }
 
-func BenchmarkItems(b *testing.B) {
-	m := New[Animal]()
-
-	// Insert 100 elements.
-	for i := 0; i < 10000; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
-	}
-	for i := 0; i < b.N; i++ {
-		m.Items()
-	}
-}
-
-func BenchmarkItemsInteger(b *testing.B) {
-	m := NewStringer[Integer, Animal]()
-
-	// Insert 100 elements.
-	for i := 0; i < 10000; i++ {
-		m.Set((Integer)(i), Animal{strconv.Itoa(i)})
-	}
-	for i := 0; i < b.N; i++ {
-		m.Items()
-	}
-}
-func directSharding(key uint32) uint32 {
-	return key
-}
-
-func BenchmarkItemsInt(b *testing.B) {
-	m := NewWithCustomShardingFunction[uint32, Animal](directSharding)
-
-	// Insert 100 elements.
-	for i := 0; i < 10000; i++ {
-		m.Set((uint32)(i), Animal{strconv.Itoa(i)})
-	}
-	for i := 0; i < b.N; i++ {
-		m.Items()
-	}
-}
-
 func BenchmarkMarshalJson(b *testing.B) {
 	m := New[Animal]()
 
@@ -292,8 +253,7 @@ func BenchmarkMultiGetSetBlock_256_Shard(b *testing.B) {
 	runWithShards(benchmarkMultiGetSetBlock, b, 256)
 }
 
-
-func GetSet[K comparable, V any](m ConcurrentMap[K, V], finished chan struct{}) (set func(key K, value V), get func(key K, value V)) {
+func GetSet[K comparable, V any](m *ConcurrentMap[K, V], finished chan struct{}) (set func(key K, value V), get func(key K, value V)) {
 	return func(key K, value V) {
 			for i := 0; i < 10; i++ {
 				m.Get(key)

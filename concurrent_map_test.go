@@ -263,30 +263,6 @@ func TestIsEmpty(t *testing.T) {
 	}
 }
 
-func TestIterator(t *testing.T) {
-	m := New[Animal]()
-
-	// Insert 100 elements.
-	for i := 0; i < 100; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
-	}
-
-	counter := 0
-	// Iterate over elements.
-	for item := range m.Iter() {
-		val := item.Val
-
-		if (val == Animal{}) {
-			t.Error("Expecting an object.")
-		}
-		counter++
-	}
-
-	if counter != 100 {
-		t.Error("We should have counted 100 elements.")
-	}
-}
-
 func TestBufferedIterator(t *testing.T) {
 	m := New[Animal]()
 
@@ -344,7 +320,7 @@ func TestIterCb(t *testing.T) {
 	}
 }
 
-func TestItems(t *testing.T) {
+func TestGetMap(t *testing.T) {
 	m := New[Animal]()
 
 	// Insert 100 elements.
@@ -352,7 +328,7 @@ func TestItems(t *testing.T) {
 		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
 	}
 
-	items := m.Items()
+	items := m.GetMap()
 
 	if len(items) != 100 {
 		t.Error("We should have counted 100 elements.")
@@ -485,19 +461,21 @@ func TestUpsert(t *testing.T) {
 	tiger := Animal{"tiger"}
 	lion := Animal{"lion"}
 
-	cb := func(exists bool, valueInMap Animal, newValue Animal) Animal {
-		if !exists {
-			return newValue
+	cb := func(in Animal) UpsertCb[Animal] {
+		return func(valueInMap Animal, exists bool) Animal {
+			if !exists {
+				return in
+			}
+			valueInMap.name += in.name
+			return valueInMap
 		}
-		valueInMap.name += newValue.name
-		return valueInMap
 	}
 
 	m := New[Animal]()
 	m.Set("marine", dolphin)
-	m.Upsert("marine", whale, cb)
-	m.Upsert("predator", tiger, cb)
-	m.Upsert("predator", lion, cb)
+	m.Upsert("marine", cb(whale))
+	m.Upsert("predator", cb(tiger))
+	m.Upsert("predator", cb(lion))
 
 	if m.Count() != 2 {
 		t.Error("map should contain exactly two elements.")
@@ -528,65 +506,13 @@ func TestKeysWhenRemoving(t *testing.T) {
 	for i := 0; i < Num; i++ {
 		go func(c *ConcurrentMap[string, Animal], n int) {
 			c.Remove(strconv.Itoa(n))
-		}(&m, i)
+		}(m, i)
 	}
 	keys := m.Keys()
 	for _, k := range keys {
 		if k == "" {
 			t.Error("Empty keys returned")
 		}
-	}
-}
-
-func TestUnDrainedIter(t *testing.T) {
-	m := New[Animal]()
-	// Insert 100 elements.
-	Total := 100
-	for i := 0; i < Total; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
-	}
-	counter := 0
-	// Iterate over elements.
-	ch := m.Iter()
-	for item := range ch {
-		val := item.Val
-
-		if (val == Animal{}) {
-			t.Error("Expecting an object.")
-		}
-		counter++
-		if counter == 42 {
-			break
-		}
-	}
-	for i := Total; i < 2*Total; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
-	}
-	for item := range ch {
-		val := item.Val
-
-		if (val == Animal{}) {
-			t.Error("Expecting an object.")
-		}
-		counter++
-	}
-
-	if counter != 100 {
-		t.Error("We should have been right where we stopped")
-	}
-
-	counter = 0
-	for item := range m.IterBuffered() {
-		val := item.Val
-
-		if (val == Animal{}) {
-			t.Error("Expecting an object.")
-		}
-		counter++
-	}
-
-	if counter != 200 {
-		t.Error("We should have counted 200 elements.")
 	}
 }
 
@@ -622,7 +548,6 @@ func TestUnDrainedIterBuffered(t *testing.T) {
 		}
 		counter++
 	}
-
 	if counter != 100 {
 		t.Error("We should have been right where we stopped")
 	}
