@@ -127,12 +127,10 @@ func TestRemoveCb(t *testing.T) {
 	m.Set("elephant", elephant)
 
 	var (
-		mapKey   string
 		mapVal   Animal
 		wasFound bool
 	)
-	cb := func(key string, val Animal, exists bool) bool {
-		mapKey = key
+	cb := func(val Animal, exists bool) bool {
 		mapVal = val
 		wasFound = exists
 
@@ -143,10 +141,6 @@ func TestRemoveCb(t *testing.T) {
 	result := m.RemoveCb("monkey", cb)
 	if !result {
 		t.Errorf("Result was not true")
-	}
-
-	if mapKey != "monkey" {
-		t.Error("Wrong key was provided to the callback")
 	}
 
 	if mapVal != monkey {
@@ -167,10 +161,6 @@ func TestRemoveCb(t *testing.T) {
 		t.Errorf("Result was true")
 	}
 
-	if mapKey != "elephant" {
-		t.Error("Wrong key was provided to the callback")
-	}
-
 	if mapVal != elephant {
 		t.Errorf("Wrong value was provided to the value")
 	}
@@ -187,10 +177,6 @@ func TestRemoveCb(t *testing.T) {
 	result = m.RemoveCb("horse", cb)
 	if result {
 		t.Errorf("Result was true")
-	}
-
-	if mapKey != "horse" {
-		t.Error("Wrong key was provided to the callback")
 	}
 
 	if (mapVal != Animal{}) {
@@ -669,6 +655,43 @@ func TestGetOrInsert(t *testing.T) {
 			if got := m.GetOrInsert(tt.key, tt.cb); got != tt.expected {
 				t.Errorf("GetOrInsert() = %v, want %v", got, tt.expected)
 			}
+		})
+	}
+}
+
+func TestGetCb(t *testing.T) {
+	// 初始化一个ConcurrentMap
+	m := New[string]()
+
+	// 定义测试用例
+	tests := []struct {
+		name      string
+		key       string
+		value     string
+		wantValue string
+	}{
+		{"v1", "key1", "value1", "value1"},
+		{"v2", "key2", "value2", "value2"},
+		{"v3", "key3", "value3", "value3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 在map中设置键值对
+			m.Set(tt.key, tt.value)
+
+			// 定义回调函数
+			cb := func(v string, exist bool) {
+				if !exist {
+					t.Errorf("GetCb(%s) not exist", tt.key)
+				}
+				if v != tt.value {
+					t.Errorf("GetCb() v = %v, wantValue = %v", v, tt.value)
+				}
+			}
+
+			// 调用待测函数
+			m.GetCb(tt.key, cb)
 		})
 	}
 }

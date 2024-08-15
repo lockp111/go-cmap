@@ -144,6 +144,18 @@ func (m ConcurrentMap[K, V]) GetOrInsert(key K, cb InsertCb[V]) V {
 	return v
 }
 
+// GetCb is a callback executed in a map.GetCb() call, while Lock is held
+// If returns true, the element will be inserted into the map
+type GetCb[V any] func(value V, exists bool)
+
+// GetCb locks the shard containing the key, retrieves its current value and calls the callback with those params
+func (m ConcurrentMap[K, V]) GetCb(key K, cb GetCb[V]) {
+	// Get shard
+	shard := m.GetShard(key)
+	v, exist := shard.Get(key)
+	cb(v, exist)
+}
+
 // Count returns the number of elements within the map.
 func (m ConcurrentMap[K, V]) Count() int {
 	count := 0
@@ -171,7 +183,7 @@ func (m ConcurrentMap[K, V]) Remove(key K) {
 
 // RemoveCb is a callback executed in a map.RemoveCb() call, while Lock is held
 // If returns true, the element will be removed from the map
-type RemoveCb[K any, V any] func(key K, value V, exists bool) bool
+type RemoveCb[K any, V any] func(value V, exists bool) bool
 
 // RemoveCb locks the shard containing the key, retrieves its current value and calls the callback with those params
 // If callback returns true and element exists, it will remove it from the map
@@ -181,7 +193,7 @@ func (m ConcurrentMap[K, V]) RemoveCb(key K, cb RemoveCb[K, V]) (ok bool) {
 	shard := m.GetShard(key)
 	shard.Update(func(m map[K]V) {
 		v, exist := m[key]
-		result := cb(key, v, exist)
+		result := cb(v, exist)
 		ok = exist && result
 		if ok {
 			delete(m, key)
