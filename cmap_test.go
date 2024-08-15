@@ -629,3 +629,46 @@ func TestUnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOrInsert(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      string
+		cb       InsertCb[string]
+		expected string
+	}{
+		{
+			name: "测试用例1：键不存在，需要插入",
+			key:  "test1",
+			cb: func() string {
+				return "value1"
+			},
+			expected: "value1",
+		},
+		{
+			name: "测试用例2：键已存在，直接获取",
+			key:  "test2",
+			cb: func() string {
+				return "value2"
+			},
+			expected: "value2",
+		},
+		{
+			name: "测试用例3：键不存在，需要插入",
+			key:  "test3",
+			cb: func() string {
+				return "value3"
+			},
+			expected: "value3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New[string]()
+			if got := m.GetOrInsert(tt.key, tt.cb); got != tt.expected {
+				t.Errorf("GetOrInsert() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}

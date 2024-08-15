@@ -98,20 +98,13 @@ func TestSafeMap_Update(t *testing.T) {
 	safeMap := NewSafeMap[string, int]()
 
 	// 定义一个更新函数
-	updateFn := func(m map[string]int) bool {
+	updateFn := func(m map[string]int) {
 		// 在这里进行一些更新操作
 		m["key1"] = 10
-		return true
 	}
 
 	// 调用 Update 函数
-	result := safeMap.Update(updateFn)
-
-	// 验证结果
-	if !result {
-		t.Errorf("Update 函数返回错误结果")
-	}
-
+	safeMap.Update(updateFn)
 	// 验证 SafeMap 中的数据是否被正确更新
 	value, ok := safeMap.Get("key1")
 	if !ok || value != 10 {

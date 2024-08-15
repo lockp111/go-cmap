@@ -91,27 +91,27 @@ func (m ConcurrentMap[K, V]) Set(key K, value V) {
 type UpsertCb[V any] func(oldValue V, exist bool) V
 
 // Insert or Update - updates existing element or inserts a new one using UpsertCb
-func (m ConcurrentMap[K, V]) Upsert(key K, cb UpsertCb[V]) {
+func (m ConcurrentMap[K, V]) Upsert(key K, cb UpsertCb[V]) (result V) {
 	shard := m.GetShard(key)
-	shard.Update(func(m map[K]V) bool {
+	shard.Update(func(m map[K]V) {
 		v, exist := m[key]
-		m[key] = cb(v, exist)
-		return true
+		result = cb(v, exist)
+		m[key] = result
 	})
+	return
 }
 
 // Sets the given value under the specified key if no value was associated with it.
-func (m ConcurrentMap[K, V]) SetIfAbsent(key K, value V) bool {
+func (m ConcurrentMap[K, V]) SetIfAbsent(key K, value V) (ok bool) {
 	// Get map shard.
 	shard := m.GetShard(key)
-	return shard.Update(func(m map[K]V) bool {
-		_, ok := m[key]
+	shard.Update(func(m map[K]V) {
+		_, ok = m[key]
 		if !ok {
 			m[key] = value
 		}
-		// Keep the existing value.
-		return !ok
 	})
+	return !ok
 }
 
 // Get retrieves an element from map under given key.
@@ -119,6 +119,29 @@ func (m ConcurrentMap[K, V]) Get(key K) (V, bool) {
 	// Get shard
 	shard := m.GetShard(key)
 	return shard.Get(key)
+}
+
+type InsertCb[V any] func() V
+
+// GetOrInsert The method is used to retrieve the value corresponding to a key in ConcurrentMap.
+// If the key does not exist, a new value will be inserted using the provided callback function.
+func (m ConcurrentMap[K, V]) GetOrInsert(key K, cb InsertCb[V]) V {
+	// Get shard
+	shard := m.GetShard(key)
+	v, exist := shard.Get(key)
+	if exist {
+		return v
+	}
+	// update
+	shard.Update(func(m map[K]V) {
+		v, exist = m[key]
+		if exist {
+			return
+		}
+		v = cb()
+		m[key] = v
+	})
+	return v
 }
 
 // Count returns the number of elements within the map.
@@ -153,27 +176,27 @@ type RemoveCb[K any, V any] func(key K, value V, exists bool) bool
 // RemoveCb locks the shard containing the key, retrieves its current value and calls the callback with those params
 // If callback returns true and element exists, it will remove it from the map
 // Returns the value returned by the callback (even if element was not present in the map)
-func (m ConcurrentMap[K, V]) RemoveCb(key K, cb RemoveCb[K, V]) bool {
+func (m ConcurrentMap[K, V]) RemoveCb(key K, cb RemoveCb[K, V]) (ok bool) {
 	// Try to get shard.
 	shard := m.GetShard(key)
-	return shard.Update(func(m map[K]V) bool {
-		v, ok := m[key]
-		result := cb(key, v, ok)
-		if ok && result {
+	shard.Update(func(m map[K]V) {
+		v, exist := m[key]
+		result := cb(key, v, exist)
+		ok = exist && result
+		if ok {
 			delete(m, key)
 		}
-		return ok && result
 	})
+	return
 }
 
 // Pop removes an element from the map and returns it
 func (m ConcurrentMap[K, V]) Pop(key K) (value V, exists bool) {
 	// Try to get shard.
 	shard := m.GetShard(key)
-	shard.Update(func(m map[K]V) bool {
+	shard.Update(func(m map[K]V) {
 		value, exists = m[key]
 		delete(m, key)
-		return true
 	})
 	return
 }
@@ -247,8 +270,8 @@ type IterCb[K comparable, V any] func(key K, v V)
 // Callback based iterator, cheapest way to read
 // all elements in a map.
 func (m ConcurrentMap[K, V]) IterCb(fn IterCb[K, V]) {
-	for item := range m.IterBuffered() {
-		fn(item.Key, item.Val)
+	for _, shard := range m.shards {
+		shard.View(fn)
 	}
 }
 
@@ -278,7 +301,7 @@ func (m ConcurrentMap[K, V]) MarshalJSON() ([]byte, error) {
 }
 
 // Reverse process of Marshal.
-func (m *ConcurrentMap[K, V]) UnmarshalJSON(b []byte) (err error) {
+func (m *ConcurrentMap[K, V]) UnmarshalJSON(b []byte) error {
 	tmp := make(map[K]V)
 
 	// Unmarshal into a single map.

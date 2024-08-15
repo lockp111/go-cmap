@@ -104,14 +104,14 @@ func (s SafeMap[K, V]) Del(key K) {
 }
 
 // Update 允许通过特定的更新逻辑更新 SafeMap 中的值
-func (s SafeMap[K, V]) Update(fn func(map[K]V) bool) bool {
+func (s SafeMap[K, V]) Update(fn func(map[K]V)) {
 	// 写锁保护
 	s.mux.Lock()
 	// 最终解锁，确保即使发生错误，写锁也会被释放
 	defer s.mux.Unlock()
 
 	// 调用提供的更新函数，并获取返回值
-	return fn(s.m)
+	fn(s.m)
 }
 
 func (s SafeMap[K, V]) MarshalJSON() ([]byte, error) {
