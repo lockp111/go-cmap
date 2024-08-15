@@ -21,7 +21,7 @@ import (
 ```
 
 ```bash
-go get "github.com/lockp111/go-cmap"
+go get github.com/lockp111/go-cmap
 ```
 
 现在包被导入到了`cmap`命名空间下
