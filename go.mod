@@ -1,3 +1,3 @@
-module github.com/lockp111/cmap
+module github.com/lockp111/go-cmap
 
-go 1.21
+go 1.21.0
