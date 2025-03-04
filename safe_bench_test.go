@@ -39,7 +39,7 @@ func BenchmarkCloneMap(b *testing.B) {
 
 // 准备测试数据
 func prepareSafeMap(size int) SafeMap[string, int] {
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 	for i := 0; i < size; i++ {
 		key := "key" + strconv.Itoa(i)
 		safeMap.Set(key, i)
@@ -51,7 +51,7 @@ func prepareSafeMap(size int) SafeMap[string, int] {
 func BenchmarkSafeMap_Set(b *testing.B) {
 	// 小数据量
 	b.Run("small", func(b *testing.B) {
-		safeMap := NewSafeMap[string, int]()
+		safeMap := NewSafe[string, int]()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			key := "key" + strconv.Itoa(i%100)
@@ -61,7 +61,7 @@ func BenchmarkSafeMap_Set(b *testing.B) {
 
 	// 大数据量
 	b.Run("large", func(b *testing.B) {
-		safeMap := NewSafeMap[string, int]()
+		safeMap := NewSafe[string, int]()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			key := "key" + strconv.Itoa(i%10000)
@@ -260,7 +260,7 @@ func BenchmarkSafeMap_UnmarshalJSON(b *testing.B) {
 	b.Run("small", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			safeMap := NewSafeMap[string, int]()
+			safeMap := NewSafe[string, int]()
 			safeMap.UnmarshalJSON(smallJSON)
 		}
 	})
@@ -268,7 +268,7 @@ func BenchmarkSafeMap_UnmarshalJSON(b *testing.B) {
 	b.Run("large", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			safeMap := NewSafeMap[string, int]()
+			safeMap := NewSafe[string, int]()
 			safeMap.UnmarshalJSON(largeJSON)
 		}
 	})

@@ -937,7 +937,7 @@ func TestNewWithCustomShardingFunction(t *testing.T) {
 		return 5 // 总是返回5，所有键将进入同一个分片
 	}
 
-	m := NewWithCustomShardingFunction[string, int](customShardingFunc)
+	m := NewWithCustom[string, int](customShardingFunc)
 	if m.shards == nil {
 		t.Error("map不应为null")
 	}

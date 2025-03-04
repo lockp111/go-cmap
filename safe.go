@@ -11,8 +11,8 @@ type SafeMap[K comparable, V any] struct {
 	mux *sync.RWMutex
 }
 
-// NewSafeMap 创建一个新的键和值类型为 K 和 V 的 SafeMap 类型指针
-func NewSafeMap[K comparable, V any]() SafeMap[K, V] {
+// NewSafe 创建一个新的键和值类型为 K 和 V 的 SafeMap 类型指针
+func NewSafe[K comparable, V any]() SafeMap[K, V] {
 	return SafeMap[K, V]{
 		m:   make(map[K]V),
 		mux: &sync.RWMutex{},

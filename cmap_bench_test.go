@@ -338,7 +338,7 @@ func BenchmarkNewWithCustomShardingFunction(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		NewWithCustomShardingFunction[string, string](customFunc)
+		NewWithCustom[string, string](customFunc)
 	}
 }
 

@@ -49,7 +49,7 @@ func create[K comparable, V any](sharding ShardingFunc[K, V]) ConcurrentMap[K, V
 		shards:   make([]SafeMap[K, V], SHARD_COUNT),
 	}
 	for i := 0; i < SHARD_COUNT; i++ {
-		m.shards[i] = NewSafeMap[K, V]()
+		m.shards[i] = NewSafe[K, V]()
 	}
 	return m
 }
@@ -65,7 +65,7 @@ func NewStringer[K Stringer, V any]() ConcurrentMap[K, V] {
 }
 
 // Creates a new concurrent map.
-func NewWithCustomShardingFunction[K comparable, V any](sharding ShardingFunc[K, V]) ConcurrentMap[K, V] {
+func NewWithCustom[K comparable, V any](sharding ShardingFunc[K, V]) ConcurrentMap[K, V] {
 	return create(sharding)
 }
 

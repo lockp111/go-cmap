@@ -8,7 +8,7 @@ import (
 
 func TestSafeMap_View(t *testing.T) {
 	// 创建一个 SafeMap 实例
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 
 	// 向 SafeMap 中添加一些数据
 	safeMap.m["key1"] = 10
@@ -48,7 +48,7 @@ func TestSafeMap_View(t *testing.T) {
 // 测试用例：正常情况
 func TestSafeMap_Find(t *testing.T) {
 	// 创建 SafeMap 实例，并设置初始键值对
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 	safeMap.Set("key1", 10)
 	safeMap.Set("key2", 20)
 
@@ -69,7 +69,7 @@ func TestSafeMap_Find(t *testing.T) {
 // 测试用例：找不到的键
 func TestSafeMap_FindNotFound(t *testing.T) {
 	// 创建 SafeMap 实例
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 
 	// 调用 SafeMap.Find 函数，查找不存在的键
 	safeMap.Find(func(key string, value int, exist bool) {
@@ -83,7 +83,7 @@ func TestSafeMap_FindNotFound(t *testing.T) {
 // 测试用例：空的键切片
 func TestSafeMap_FindEmptyKeys(t *testing.T) {
 	// 创建 SafeMap 实例
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 
 	// 调用 SafeMap.Find 函数，传入空的键切片
 	safeMap.Find(func(key string, value int, exist bool) {
@@ -95,7 +95,7 @@ func TestSafeMap_FindEmptyKeys(t *testing.T) {
 // TestUpdate 测试 Update 函数
 func TestSafeMap_Update(t *testing.T) {
 	// 创建一个 SafeMap 实例
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 
 	// 定义一个更新函数
 	updateFn := func(m map[string]int) {
@@ -115,7 +115,7 @@ func TestSafeMap_Update(t *testing.T) {
 // TestMarshalJSON 测试 MarshalJSON 方法
 func TestSafeMap_MarshalJSON(t *testing.T) {
 	// 初始化测试数据
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 	safeMap.Set("key1", 1)
 	safeMap.Set("key2", 2)
 
@@ -137,7 +137,7 @@ func TestSafeMap_MarshalJSON(t *testing.T) {
 // TestUnmarshalJSON 测试 UnmarshalJSON 函数
 func TestSafeMap_UnmarshalJSON(t *testing.T) {
 	// 创建一个 SafeMap 实例
-	safeMap := NewSafeMap[string, int]()
+	safeMap := NewSafe[string, int]()
 
 	// 准备测试数据
 	jsonData := []byte(`{"key1": 10, "key2": 20}`)
@@ -158,7 +158,7 @@ func TestSafeMap_UnmarshalJSON(t *testing.T) {
 
 // TestSafeMap_FindComprehensive 全面测试 Find 方法的各种情况
 func TestSafeMap_FindComprehensive(t *testing.T) {
-	sm := NewSafeMap[string, string]()
+	sm := NewSafe[string, string]()
 	sm.Set("key1", "value1")
 	sm.Set("key2", "value2")
 
