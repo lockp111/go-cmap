@@ -65,3 +65,54 @@ Contributions are highly welcome. In order for a contribution to be merged, plea
 
 ## License
 MIT (see [LICENSE](https://github.com/lockp111/go-cmap/blob/master/LICENSE) file)
+
+## Performance Comparison
+
+We conducted performance tests on ConcurrentMap, sync.Map, and standard map+lock in various scenarios. Here's an analysis of the results:
+
+### Read/Write Ratio Tests
+
+| Scenario | ConcurrentMap | sync.Map | Standard map+lock |
+|----------|---------------|----------|-------------------|
+| Read Heavy (90% reads) | 59.28 ns/op | 22.89 ns/op | 195.2 ns/op |
+| Balanced (50% reads) | 85.47 ns/op | 72.72 ns/op | 176.0 ns/op |
+| Write Heavy (90% writes) | 99.25 ns/op | 123.9 ns/op | 242.6 ns/op |
+
+### Scale and Concurrency Tests (Read Heavy Scenario)
+
+| Size | Goroutines | ConcurrentMap | sync.Map | Standard map+lock |
+|------|------------|---------------|----------|-------------------|
+| 1000 | 10 | 49.80 ns/op | 12.52 ns/op | 70.11 ns/op |
+| 1000 | 50 | 55.00 ns/op | 18.91 ns/op | 187.1 ns/op |
+| 1000 | 100 | 58.60 ns/op | 23.26 ns/op | 193.8 ns/op |
+| 10000 | 10 | 51.14 ns/op | 8.948 ns/op | 86.93 ns/op |
+| 10000 | 50 | 55.77 ns/op | 9.228 ns/op | 218.2 ns/op |
+| 10000 | 100 | 59.46 ns/op | 9.408 ns/op | 210.5 ns/op |
+
+### Performance Characteristics Analysis
+
+1. **Read-dominant scenarios**:
+   - sync.Map performs best, especially with large data sets
+   - ConcurrentMap shows moderate performance, taking about 2-6 times longer than sync.Map
+   - Standard map+lock performs worst, with performance deteriorating significantly as concurrency increases
+
+2. **Balanced read/write scenarios**:
+   - sync.Map and ConcurrentMap perform similarly
+   - Standard map+lock still lags behind
+
+3. **Write-dominant scenarios**:
+   - ConcurrentMap performs best in write-intensive scenarios
+   - sync.Map has weaker write performance and higher memory allocation
+   - Standard map+lock performs worst in high-concurrency write operations
+
+4. **Scalability**:
+   - Standard map+lock performance drops significantly with increased concurrency, making it unsuitable for high-concurrency scenarios
+   - ConcurrentMap performance slightly decreases with increased concurrency but remains relatively stable
+   - sync.Map excels in high-concurrency read scenarios but underperforms with heavy writes
+
+### Usage Recommendations
+
+- For read-dominant workloads (>90% reads), sync.Map is recommended
+- For balanced or write-heavy workloads, ConcurrentMap is recommended
+- Avoid using standard map with locks in any high-concurrency scenario
+- For large-scale data with mostly read operations, sync.Map's performance advantage is most significant

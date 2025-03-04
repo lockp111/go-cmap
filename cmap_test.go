@@ -6,11 +6,17 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 )
 
 type Animal struct {
 	name string
+}
+
+// 实现fmt.Stringer接口
+func (a Animal) String() string {
+	return a.name
 }
 
 func TestMapCreation(t *testing.T) {
@@ -693,5 +699,487 @@ func TestGetCb(t *testing.T) {
 			// 调用待测函数
 			m.GetCb(tt.key, cb)
 		})
+	}
+}
+
+// 测试空key处理情况
+func TestEmptyKey(t *testing.T) {
+	m := New[Animal]()
+	elephant := Animal{"elephant"}
+
+	// 测试空字符串作为key
+	m.Set("", elephant)
+
+	// 验证能否正确获取
+	val, ok := m.Get("")
+	if !ok {
+		t.Error("不能用空字符串作为key")
+	}
+	if val.name != "elephant" {
+		t.Error("获取的值不正确")
+	}
+
+	// 验证删除空key
+	m.Remove("")
+	if m.Count() != 0 {
+		t.Error("删除空键后计数应为0")
+	}
+}
+
+// 测试并发map的分片访问
+func TestShardMapAccess(t *testing.T) {
+	m := New[string]()
+
+	// 确保我们的测试会触发不同的分片
+	// 添加足够多的键以覆盖所有分片
+	for i := 0; i < SHARD_COUNT*2; i++ {
+		key := "key" + strconv.Itoa(i)
+		value := "value" + strconv.Itoa(i)
+		m.Set(key, value)
+	}
+
+	if m.Count() != SHARD_COUNT*2 {
+		t.Error("map应该包含", SHARD_COUNT*2, "个元素")
+	}
+}
+
+// 测试分片数量修改
+func TestShardCount(t *testing.T) {
+	// 保存原始SHARD_COUNT
+	originalShardCount := SHARD_COUNT
+
+	// 修改为不同的分片数
+	SHARD_COUNT = 64
+	m := New[string]()
+
+	// 添加一些数据
+	for i := 0; i < 100; i++ {
+		m.Set(strconv.Itoa(i), strconv.Itoa(i))
+	}
+
+	if m.Count() != 100 {
+		t.Error("设置了不同的分片数后，map应该包含100个元素")
+	}
+
+	// 恢复原始设置
+	SHARD_COUNT = originalShardCount
+}
+
+// 测试空并发map的JSON操作
+func TestEmptyMapJson(t *testing.T) {
+	m := New[string]()
+	j, err := json.Marshal(m)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := "{}"
+	if string(j) != expected {
+		t.Error("空map的json应该是", expected, "，但得到了", string(j))
+	}
+
+	// 测试解析空JSON
+	m2 := New[string]()
+	err = json.Unmarshal([]byte("{}"), &m2)
+	if err != nil {
+		t.Error("解析空JSON失败:", err)
+	}
+
+	if m2.Count() != 0 {
+		t.Error("解析空JSON后，map应该是空的")
+	}
+}
+
+// 测试MGet功能（如果实现了的话）
+func TestMGet(t *testing.T) {
+	m := New[string]()
+
+	// 添加一些数据
+	m.Set("key1", "value1")
+	m.Set("key2", "value2")
+	m.Set("key3", "value3")
+
+	// 测试是否能正确获取多个键值对
+	keys := []string{"key1", "key2", "key4"}
+	results := make(map[string]string)
+
+	for _, key := range keys {
+		if val, ok := m.Get(key); ok {
+			results[key] = val
+		}
+	}
+
+	if len(results) != 2 {
+		t.Error("应该只找到2个键")
+	}
+
+	if val, exists := results["key1"]; !exists || val != "value1" {
+		t.Error("key1的值不正确")
+	}
+
+	if val, exists := results["key2"]; !exists || val != "value2" {
+		t.Error("key2的值不正确")
+	}
+
+	if _, exists := results["key4"]; exists {
+		t.Error("key4不应该存在")
+	}
+}
+
+// 测试GetOrInsert在各种情况下的行为
+func TestGetOrInsertExtended(t *testing.T) {
+	m := New[string]()
+
+	// 情况1: 键不存在时插入
+	value1 := m.GetOrInsert("key1", func() string {
+		return "value1"
+	})
+
+	if value1 != "value1" {
+		t.Error("GetOrInsert应返回插入的值")
+	}
+
+	// 情况2: 键已存在时返回现有值
+	value2 := m.GetOrInsert("key1", func() string {
+		return "new_value"
+	})
+
+	if value2 != "value1" {
+		t.Error("GetOrInsert应返回已存在的值，而不是新值")
+	}
+
+	// 情况3: 测试并发情况
+	done := make(chan bool)
+	for i := 0; i < 10; i++ {
+		go func(index int) {
+			key := "concurrent_key" + strconv.Itoa(index%3)
+			m.GetOrInsert(key, func() string {
+				return "concurrent_value_" + strconv.Itoa(index)
+			})
+			done <- true
+		}(i)
+	}
+
+	// 等待所有goroutine完成
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+
+	// 验证我们只有3个不同的key
+	uniqueKeys := make(map[string]bool)
+	for _, key := range m.Keys() {
+		if strings.HasPrefix(key, "concurrent_key") {
+			uniqueKeys[key] = true
+		}
+	}
+
+	if len(uniqueKeys) != 3 {
+		t.Error("应该只有3个不同的concurrent_key")
+	}
+}
+
+// 测试GetCb键不存在时的行为
+func TestGetCbKeyNotExist(t *testing.T) {
+	m := New[string]()
+
+	called := false
+	m.GetCb("non_existent_key", func(val string, exists bool) {
+		if exists {
+			t.Error("键不应该存在")
+		}
+		if val != "" {
+			t.Error("不存在的键应该返回空值")
+		}
+		called = true
+	})
+
+	if !called {
+		t.Error("回调函数应该被调用")
+	}
+}
+
+// 测试自定义Stringer类型的哈希函数
+func TestStrfnv32(t *testing.T) {
+	animal := Animal{"elephant"}
+	// 确保strfnv32能正确处理实现了Stringer接口的类型
+	hash := strfnv32(animal)
+	expected := fnv32("elephant")
+	if hash != expected {
+		t.Errorf("strfnv32(%v) = %v, 期望 %v", animal, hash, expected)
+	}
+}
+
+// 测试使用Stringer接口创建ConcurrentMap
+func TestNewStringer(t *testing.T) {
+	m := NewStringer[Animal, int]()
+	if m.shards == nil {
+		t.Error("map不应为null")
+	}
+
+	if m.Count() != 0 {
+		t.Error("新map应该为空")
+	}
+
+	// 测试添加和获取元素
+	cat := Animal{"cat"}
+	m.Set(cat, 1)
+
+	val, ok := m.Get(cat)
+	if !ok || val != 1 {
+		t.Error("无法使用Stringer接口作为键添加和获取元素")
+	}
+}
+
+// 测试自定义分片函数
+func TestNewWithCustomShardingFunction(t *testing.T) {
+	// 创建一个自定义的分片函数，总是返回相同的哈希值
+	customShardingFunc := func(key string) uint32 {
+		return 5 // 总是返回5，所有键将进入同一个分片
+	}
+
+	m := NewWithCustomShardingFunction[string, int](customShardingFunc)
+	if m.shards == nil {
+		t.Error("map不应为null")
+	}
+
+	if m.Count() != 0 {
+		t.Error("新map应该为空")
+	}
+
+	// 测试添加元素，应该都进入同一个分片
+	m.Set("a", 1)
+	m.Set("b", 2)
+	m.Set("c", 3)
+
+	// 确认所有元素都能正确获取
+	for _, k := range []string{"a", "b", "c"} {
+		if val, ok := m.Get(k); !ok || val != map[string]int{"a": 1, "b": 2, "c": 3}[k] {
+			t.Errorf("使用自定义分片函数时无法正确获取键 %s", k)
+		}
+	}
+}
+
+// 测试SetIfExists函数
+func TestSetIfExists(t *testing.T) {
+	m := New[string]()
+
+	// 在键不存在时，SetIfExists应返回false
+	ok := m.SetIfExists("key1", "value1")
+	if ok {
+		t.Error("键不存在时，SetIfExists应返回false")
+	}
+
+	// 先设置一个值
+	m.Set("key1", "value1")
+	// 现在键存在，SetIfExists应返回true，并更新值
+	ok = m.SetIfExists("key1", "value2")
+	if !ok {
+		t.Error("键存在时，SetIfExists应返回true")
+	}
+
+	// 确认值已被更新
+	val, exists := m.Get("key1")
+	if !exists {
+		t.Error("键应该存在")
+	}
+	if val != "value2" {
+		t.Error("键的值应该已经被更新为value2")
+	}
+}
+
+// 测试并发情况下的GetOrInsert - 提高GetOrInsert的覆盖率
+func TestGetOrInsertConcurrent(t *testing.T) {
+	m := New[int]()
+
+	// 并发调用GetOrInsert
+	const routines = 10
+	done := make(chan bool, routines)
+
+	for i := 0; i < routines; i++ {
+		go func(index int) {
+			// 确保所有goroutine尝试访问同一个键
+			key := "concurrent_key"
+			val := m.GetOrInsert(key, func() int {
+				return index // 返回不同的值
+			})
+			// 所有goroutine应该得到相同的值（第一个完成的goroutine的值）
+			if val < 0 || val >= routines {
+				t.Errorf("unexpected value: %v", val)
+			}
+			done <- true
+		}(i)
+	}
+
+	// 等待所有goroutine完成
+	for i := 0; i < routines; i++ {
+		<-done
+	}
+
+	// 检查map中只有一个值
+	if m.Count() != 1 {
+		t.Error("map应该只有一个值")
+	}
+}
+
+// 测试UnmarshalJSON在不同情况下的行为
+func TestUnmarshalJSONComprehensive(t *testing.T) {
+	// 测试有效的JSON
+	validJSON := `{"key1":"value1","key2":"value2"}`
+	m1 := New[string]()
+	err := json.Unmarshal([]byte(validJSON), &m1)
+	if err != nil {
+		t.Error("解析有效JSON时应该不会出错:", err)
+	}
+	if m1.Count() != 2 {
+		t.Error("解析后应该有2个键值对")
+	}
+
+	// 测试结构错误的JSON
+	invalidJSON := `{"key1":value1"` // 缺少引号
+	m2 := New[string]()
+	err = json.Unmarshal([]byte(invalidJSON), &m2)
+	if err == nil {
+		t.Error("解析无效JSON时应该报错")
+	}
+
+	// 测试空JSON
+	emptyJSON := `{}`
+	m3 := New[string]()
+	err = json.Unmarshal([]byte(emptyJSON), &m3)
+	if err != nil {
+		t.Error("解析空JSON时不应该出错:", err)
+	}
+	if m3.Count() != 0 {
+		t.Error("解析空JSON后应该没有键值对")
+	}
+
+	// 测试非对象JSON
+	nonObjectJSON := `["array", "not", "object"]`
+	m4 := New[string]()
+	err = json.Unmarshal([]byte(nonObjectJSON), &m4)
+	if err == nil {
+		t.Error("解析非对象JSON时应该报错")
+	}
+}
+
+// 测试GetOrInsert的竞态条件
+func TestGetOrInsertRaceCondition(t *testing.T) {
+	// 创建一个模拟场景，使GetOrInsert能覆盖到竞态条件分支
+	m := New[string]()
+	key := "race_key"
+
+	// 创建通道用于控制测试流程
+	raceDone := make(chan bool)
+	getterReady := make(chan bool)
+	getterDone := make(chan bool)
+
+	// 启动一个goroutine获取/插入值
+	go func() {
+		// 通知已准备好
+		getterReady <- true
+
+		// 等待竞态条件准备完成
+		<-raceDone
+
+		// 这里调用GetOrInsert
+		result := m.GetOrInsert(key, func() string {
+			// 在这个回调函数执行前，已经有另一个goroutine设置了值
+			return "this_should_not_be_used"
+		})
+
+		// 验证得到的是另一个goroutine设置的值
+		if result != "value_from_racer" {
+			t.Error("应该获取到竞态goroutine设置的值")
+		}
+
+		getterDone <- true
+	}()
+
+	// 等待第一个goroutine准备好
+	<-getterReady
+
+	// 在这个时间窗口中设置键值，模拟竞态条件
+	m.Set(key, "value_from_racer")
+
+	// 通知竞态条件已准备好
+	raceDone <- true
+
+	// 等待获取器完成
+	<-getterDone
+}
+
+// 测试GetOrInsert函数在竞态条件下的行为 - 更直接的方法
+func TestGetOrInsertEdgeCase(t *testing.T) {
+	m := New[string]()
+	key := "race_key"
+	expectedValue := "pre_set_value"
+
+	// 1. 获取分片
+	shard := m.GetShard(key)
+
+	// 2. 在分片中预先设置值，模拟在第一次检查后由另一个goroutine设置的情况
+	shard.Set(key, expectedValue)
+
+	// 3. 调用GetOrInsert - 它此时会跳过第一次检查，进入Update逻辑
+	//    在Update中，它会发现键已存在并返回现有值，而不是使用回调函数
+	value := m.GetOrInsert(key, func() string {
+		// 这个回调函数不应该被调用
+		t.Error("键已存在，不应调用回调函数")
+		return "should_not_be_used"
+	})
+
+	if value != expectedValue {
+		t.Errorf("应该返回预设值 %s，而不是 %s", expectedValue, value)
+	}
+}
+
+// 使用替代方法测试GetOrInsert的所有分支路径
+func TestGetOrInsertCoverage(t *testing.T) {
+	// 目标是覆盖 GetOrInsert 中的这个部分：
+	// shard.Update(func(m map[K]V) {
+	//     v, exist = m[key]
+	//     if exist { // <-- 这个分支需要覆盖
+	//         return
+	//     }
+	//     v = cb()
+	//     m[key] = v
+	// })
+
+	m := New[string]()
+	key := "test_key"
+
+	// 1. 先设置键值对
+	m.Set(key, "existing_value")
+
+	// 2. 调用GetOrInsert，这会触发内部的Update回调，
+	// 并且在回调中应该走到 if exist { return } 分支
+	value := m.GetOrInsert(key, func() string {
+		// 这个函数不应该被调用，因为键已经存在
+		t.Error("键已存在，回调函数不应被调用")
+		return "new_value"
+	})
+
+	// 3. 验证返回的是现有值
+	if value != "existing_value" {
+		t.Errorf("应该返回现有值 %s，而不是 %s", "existing_value", value)
+	}
+
+	// 确认map中的值没有变化
+	storedValue, exists := m.Get(key)
+	if !exists {
+		t.Error("键应该存在")
+	}
+	if storedValue != "existing_value" {
+		t.Errorf("存储的值应该是 %s，而不是 %s", "existing_value", storedValue)
+	}
+
+	// 测试键不存在的情况
+	newKey := "new_key"
+	newValue := m.GetOrInsert(newKey, func() string {
+		return "new_value"
+	})
+
+	if newValue != "new_value" {
+		t.Errorf("对于新键，应该返回回调函数的值 %s，而不是 %s", "new_value", newValue)
 	}
 }

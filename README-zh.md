@@ -34,13 +34,13 @@ go get github.com/lockp111/go-cmap
 	// 创建一个新的 map.
 	m := cmap.New[string]()
 
-	// 设置变量m一个键为“foo”值为“bar”键值对
+	// 设置变量m一个键为"foo"值为"bar"键值对
 	m.Set("foo", "bar")
 
 	// 从m中获取指定键值.
 	bar, ok := m.Get("foo")
 
-	// 删除键为“foo”的项
+	// 删除键为"foo"的项
 	m.Remove("foo")
 
 ```
@@ -64,3 +64,54 @@ go test "github.com/lockp111/go-cmap"
 
 ## 许可证
 MIT (see [LICENSE](https://github.com/lockp111/go-cmap/blob/master/LICENSE) file)
+
+## 性能对比
+
+我们对ConcurrentMap、sync.Map和标准map+锁进行了多种场景的性能测试，以下是测试结果的分析：
+
+### 读写比例场景测试
+
+| 场景 | ConcurrentMap | sync.Map | 标准map+锁 |
+|-----|--------------|----------|-----------|
+| 读多写少(90%读) | 59.28 ns/op | 22.89 ns/op | 195.2 ns/op |
+| 读写均衡(50%读) | 85.47 ns/op | 72.72 ns/op | 176.0 ns/op |
+| 写多读少(90%写) | 99.25 ns/op | 123.9 ns/op | 242.6 ns/op |
+
+### 规模与并发度测试 (读多写少场景)
+
+| 规模 | 并发数 | ConcurrentMap | sync.Map | 标准map+锁 |
+|-----|-------|--------------|----------|-----------|
+| 1000 | 10 | 49.80 ns/op | 12.52 ns/op | 70.11 ns/op |
+| 1000 | 50 | 55.00 ns/op | 18.91 ns/op | 187.1 ns/op |
+| 1000 | 100 | 58.60 ns/op | 23.26 ns/op | 193.8 ns/op |
+| 10000 | 10 | 51.14 ns/op | 8.948 ns/op | 86.93 ns/op |
+| 10000 | 50 | 55.77 ns/op | 9.228 ns/op | 218.2 ns/op |
+| 10000 | 100 | 59.46 ns/op | 9.408 ns/op | 210.5 ns/op |
+
+### 性能特点分析
+
+1. **读操作为主的场景**：
+   - sync.Map 表现最佳，特别是在大规模数据时性能优势明显
+   - ConcurrentMap 性能适中，约为sync.Map的2-6倍时间
+   - 标准map+锁性能最差，并且随着并发度增加性能下降显著
+
+2. **读写均衡的场景**：
+   - sync.Map 和 ConcurrentMap 性能相近
+   - 标准map+锁仍明显落后
+
+3. **写操作为主的场景**：
+   - ConcurrentMap 在写密集场景表现最好
+   - sync.Map 写入性能较弱，内存分配也更多
+   - 标准map+锁在高并发写入时性能最差
+
+4. **扩展性**：
+   - 标准map+锁随并发度增加性能下降明显，不适合高并发场景
+   - ConcurrentMap 性能随并发度增加略有下降，但保持相对稳定
+   - sync.Map 在高并发读取场景非常出色，但在大量写入时表现较差
+
+### 使用建议
+
+- 如果读操作占绝大多数（>90%），推荐使用 sync.Map
+- 如果写操作较多或读写比例均衡，推荐使用 ConcurrentMap
+- 在任何高并发场景下都应避免使用带锁的标准map
+- 对于大规模数据且读多写少的场景，sync.Map的性能优势更为明显

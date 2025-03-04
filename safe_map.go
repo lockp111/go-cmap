@@ -81,6 +81,20 @@ func (s SafeMap[K, V]) Get(key K) (V, bool) {
 	return v, ok
 }
 
+// GetCb 方法用于获取键对应的值，并调用回调函数
+func (s SafeMap[K, V]) GetCb(key K, cb func(value V, exists bool)) {
+	// 读锁保护，保证数据安全
+	s.mux.RLock()
+	// 使用 defer 确保即使发生错误，读锁也会被释放
+	defer s.mux.RUnlock()
+
+	// 尝试获取键对应的值
+	v, ok := s.m[key]
+
+	// 调用回调函数
+	cb(v, ok)
+}
+
 // Set 方法用于设置键值对
 func (s SafeMap[K, V]) Set(key K, value V) {
 	// 写锁保护，保证数据安全

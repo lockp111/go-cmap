@@ -155,3 +155,60 @@ func TestSafeMap_UnmarshalJSON(t *testing.T) {
 		t.Errorf("Expected map values: key1=10, key2=20, but got: %v", safeMap.m)
 	}
 }
+
+// TestSafeMap_FindComprehensive 全面测试 Find 方法的各种情况
+func TestSafeMap_FindComprehensive(t *testing.T) {
+	sm := NewSafeMap[string, string]()
+	sm.Set("key1", "value1")
+	sm.Set("key2", "value2")
+
+	// 测试找到的和未找到的键
+	results := make(map[string]string)
+	sm.Find(func(key string, value string, exist bool) {
+		if exist {
+			results[key] = value
+		}
+	}, "key1", "key3")
+
+	// 应该只找到key1
+	if len(results) != 1 {
+		t.Error("应该只找到一个键")
+	}
+	if val, ok := results["key1"]; !ok || val != "value1" {
+		t.Error("应该找到key1并得到正确的值")
+	}
+	if _, ok := results["key3"]; ok {
+		t.Error("不应该找到key3")
+	}
+
+	// 测试空键列表
+	emptyResults := make(map[string]string)
+	sm.Find(func(key string, value string, exist bool) {
+		if exist {
+			emptyResults[key] = value
+		}
+	})
+	if len(emptyResults) != 0 {
+		t.Error("不传入键时应该没有结果")
+	}
+
+	// 测试传入多个键
+	multiResults := make(map[string]string)
+	sm.Find(func(key string, value string, exist bool) {
+		if exist {
+			multiResults[key] = value
+		} else {
+			multiResults[key] = "not_found"
+		}
+	}, "key1", "key2", "key3")
+
+	if len(multiResults) != 3 {
+		t.Error("应该有3个结果")
+	}
+	if multiResults["key1"] != "value1" || multiResults["key2"] != "value2" {
+		t.Error("key1和key2的值不正确")
+	}
+	if multiResults["key3"] != "not_found" {
+		t.Error("key3应标记为未找到")
+	}
+}

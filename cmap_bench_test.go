@@ -301,3 +301,254 @@ func BenchmarkKeys(b *testing.B) {
 		m.Keys()
 	}
 }
+
+// BenchmarkSetIfExists 测试SetIfExists方法性能
+func BenchmarkSetIfExists(b *testing.B) {
+	// 键存在的情况
+	b.Run("key_exists", func(b *testing.B) {
+		m := New[string]()
+		m.Set("key", "value")
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			m.SetIfExists("key", "newvalue")
+		}
+	})
+
+	// 键不存在的情况
+	b.Run("key_not_exists", func(b *testing.B) {
+		m := New[string]()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			m.SetIfExists("key"+strconv.Itoa(i), "value")
+		}
+	})
+}
+
+// BenchmarkNewStringer 测试NewStringer方法性能
+func BenchmarkNewStringer(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		NewStringer[Integer, string]()
+	}
+}
+
+// BenchmarkNewWithCustomShardingFunction 测试NewWithCustomShardingFunction方法性能
+func BenchmarkNewWithCustomShardingFunction(b *testing.B) {
+	customFunc := func(key string) uint32 {
+		return uint32(len(key))
+	}
+
+	for i := 0; i < b.N; i++ {
+		NewWithCustomShardingFunction[string, string](customFunc)
+	}
+}
+
+// BenchmarkGetOrInsert 测试GetOrInsert方法性能
+func BenchmarkGetOrInsert(b *testing.B) {
+	// 键不存在的情况
+	b.Run("key_not_exists", func(b *testing.B) {
+		m := New[string]()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			key := "key" + strconv.Itoa(i)
+			m.GetOrInsert(key, func() string {
+				return "value"
+			})
+		}
+	})
+
+	// 键存在的情况
+	b.Run("key_exists", func(b *testing.B) {
+		m := New[string]()
+		for i := 0; i < 1000; i++ {
+			key := "key" + strconv.Itoa(i)
+			m.Set(key, "value")
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			key := "key" + strconv.Itoa(i%1000)
+			m.GetOrInsert(key, func() string {
+				return "newvalue"
+			})
+		}
+	})
+}
+
+// BenchmarkHas 测试Has方法性能
+func BenchmarkHas(b *testing.B) {
+	// 键存在的情况
+	b.Run("key_exists", func(b *testing.B) {
+		m := New[string]()
+		for i := 0; i < 1000; i++ {
+			key := "key" + strconv.Itoa(i)
+			m.Set(key, "value")
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			key := "key" + strconv.Itoa(i%1000)
+			m.Has(key)
+		}
+	})
+
+	// 键不存在的情况
+	b.Run("key_not_exists", func(b *testing.B) {
+		m := New[string]()
+		for i := 0; i < 1000; i++ {
+			key := "key" + strconv.Itoa(i)
+			m.Set(key, "value")
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			key := "nonexistent" + strconv.Itoa(i)
+			m.Has(key)
+		}
+	})
+}
+
+// BenchmarkClear 测试Clear方法性能
+func BenchmarkClear(b *testing.B) {
+	b.Run("small", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			m := New[string]()
+			for j := 0; j < 100; j++ {
+				m.Set("key"+strconv.Itoa(j), "value")
+			}
+			b.StartTimer()
+
+			m.Clear()
+		}
+	})
+
+	b.Run("large", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			m := New[string]()
+			for j := 0; j < 10000; j++ {
+				m.Set("key"+strconv.Itoa(j), "value")
+			}
+			b.StartTimer()
+
+			m.Clear()
+		}
+	})
+}
+
+// BenchmarkPop 测试Pop方法性能
+func BenchmarkPop(b *testing.B) {
+	b.Run("existing_key", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+			m.Set("key", "value")
+			_, _ = m.Pop("key")
+		}
+	})
+
+	b.Run("non_existing_key", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+			_, _ = m.Pop("nonexistent")
+		}
+	})
+}
+
+// BenchmarkGetCb 测试GetCb方法性能
+func BenchmarkGetCb(b *testing.B) {
+	// 键存在的情况
+	b.Run("key_exists", func(b *testing.B) {
+		m := New[string]()
+		for i := 0; i < 1000; i++ {
+			key := "key" + strconv.Itoa(i)
+			m.Set(key, "value")
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			key := "key" + strconv.Itoa(i%1000)
+			m.GetCb(key, func(val string, exists bool) {
+				// 回调函数
+			})
+		}
+	})
+
+	// 键不存在的情况
+	b.Run("key_not_exists", func(b *testing.B) {
+		m := New[string]()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			key := "key" + strconv.Itoa(i)
+			m.GetCb(key, func(val string, exists bool) {
+				// 回调函数
+			})
+		}
+	})
+}
+
+// BenchmarkRemoveCb 测试RemoveCb方法性能
+func BenchmarkRemoveCb(b *testing.B) {
+	// 键存在且条件成立时删除
+	b.Run("remove_when_true", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+			m.Set("key", "value")
+
+			m.RemoveCb("key", func(val string, exists bool) bool {
+				return true
+			})
+		}
+	})
+
+	// 键存在但条件不成立时不删除
+	b.Run("not_remove_when_false", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+			m.Set("key", "value")
+
+			m.RemoveCb("key", func(val string, exists bool) bool {
+				return false
+			})
+		}
+	})
+
+	// 键不存在时的情况
+	b.Run("key_not_exists", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+
+			m.RemoveCb("nonexistent", func(val string, exists bool) bool {
+				return true
+			})
+		}
+	})
+}
+
+// BenchmarkUnmarshalJSON 测试UnmarshalJSON方法性能
+func BenchmarkUnmarshalJSON(b *testing.B) {
+	// 准备一个小的JSON数据
+	smallMap := New[string]()
+	for i := 0; i < 100; i++ {
+		smallMap.Set("key"+strconv.Itoa(i), "value")
+	}
+	smallJSON, _ := smallMap.MarshalJSON()
+
+	// 准备一个大的JSON数据
+	largeMap := New[string]()
+	for i := 0; i < 10000; i++ {
+		largeMap.Set("key"+strconv.Itoa(i), "value")
+	}
+	largeJSON, _ := largeMap.MarshalJSON()
+
+	// 测试小数据量
+	b.Run("small", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+			m.UnmarshalJSON(smallJSON)
+		}
+	})
+
+	// 测试大数据量
+	b.Run("large", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			m := New[string]()
+			m.UnmarshalJSON(largeJSON)
+		}
+	})
+}

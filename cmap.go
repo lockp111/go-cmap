@@ -66,7 +66,7 @@ func NewStringer[K Stringer, V any]() ConcurrentMap[K, V] {
 
 // Creates a new concurrent map.
 func NewWithCustomShardingFunction[K comparable, V any](sharding ShardingFunc[K, V]) ConcurrentMap[K, V] {
-	return create[K, V](sharding)
+	return create(sharding)
 }
 
 // GetShard returns shard under given key
@@ -114,6 +114,19 @@ func (m ConcurrentMap[K, V]) SetIfAbsent(key K, value V) (ok bool) {
 	return !ok
 }
 
+// Sets the given value under the specified key if a value was associated with it.
+func (m ConcurrentMap[K, V]) SetIfExists(key K, value V) (ok bool) {
+	// Get map shard.
+	shard := m.GetShard(key)
+	shard.Update(func(m map[K]V) {
+		_, ok = m[key]
+		if ok {
+			m[key] = value
+		}
+	})
+	return ok
+}
+
 // Get retrieves an element from map under given key.
 func (m ConcurrentMap[K, V]) Get(key K) (V, bool) {
 	// Get shard
@@ -152,8 +165,7 @@ type GetCb[V any] func(value V, exists bool)
 func (m ConcurrentMap[K, V]) GetCb(key K, cb GetCb[V]) {
 	// Get shard
 	shard := m.GetShard(key)
-	v, exist := shard.Get(key)
-	cb(v, exist)
+	shard.GetCb(key, cb)
 }
 
 // Count returns the number of elements within the map.
