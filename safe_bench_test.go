@@ -38,7 +38,7 @@ func BenchmarkCloneMap(b *testing.B) {
 }
 
 // 准备测试数据
-func prepareSafeMap(size int) SafeMap[string, int] {
+func prepareSafeMap(size int) *SafeMap[string, int] {
 	safeMap := NewSafe[string, int]()
 	for i := 0; i < size; i++ {
 		key := "key" + strconv.Itoa(i)

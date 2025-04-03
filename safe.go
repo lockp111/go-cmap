@@ -8,19 +8,19 @@ import (
 
 type SafeMap[K comparable, V any] struct {
 	m   map[K]V
-	mux *sync.RWMutex
+	mux sync.RWMutex
 }
 
 // NewSafe 创建一个新的键和值类型为 K 和 V 的 SafeMap 类型指针
-func NewSafe[K comparable, V any]() SafeMap[K, V] {
-	return SafeMap[K, V]{
+func NewSafe[K comparable, V any]() *SafeMap[K, V] {
+	return &SafeMap[K, V]{
 		m:   make(map[K]V),
-		mux: &sync.RWMutex{},
+		mux: sync.RWMutex{},
 	}
 }
 
 // View 提供了对 SafeMap 中键值对的只读访问视图
-func (s SafeMap[K, V]) View(fn func(K, V)) {
+func (s *SafeMap[K, V]) View(fn func(K, V)) {
 	// 读锁保护
 	s.mux.RLock()
 	// 最终解锁，确保即使发生错误，读锁也会被释放
@@ -33,7 +33,7 @@ func (s SafeMap[K, V]) View(fn func(K, V)) {
 	}
 }
 
-func (s SafeMap[K, V]) Clone() map[K]V {
+func (s *SafeMap[K, V]) Clone() map[K]V {
 	// 读锁保护
 	s.mux.RLock()
 	// 最终解锁，确保即使发生错误，读锁也会被释放
@@ -42,7 +42,7 @@ func (s SafeMap[K, V]) Clone() map[K]V {
 }
 
 // Find 允许通过特定的键值集合来查找 SafeMap 中的值，并通过提供的函数进行处理
-func (s SafeMap[K, V]) Find(fn func(key K, value V, exist bool), keys ...K) {
+func (s *SafeMap[K, V]) Find(fn func(key K, value V, exist bool), keys ...K) {
 	// 读锁保护
 	s.mux.RLock()
 	// 最终解锁，确保即使发生错误，读锁也会被释放
@@ -57,7 +57,7 @@ func (s SafeMap[K, V]) Find(fn func(key K, value V, exist bool), keys ...K) {
 	}
 }
 
-func (s SafeMap[K, V]) Count() int {
+func (s *SafeMap[K, V]) Count() int {
 	// 获取读锁
 	s.mux.RLock()
 	// 在函数退出时解锁
@@ -68,7 +68,7 @@ func (s SafeMap[K, V]) Count() int {
 }
 
 // Get 方法用于获取键对应的值
-func (s SafeMap[K, V]) Get(key K) (V, bool) {
+func (s *SafeMap[K, V]) Get(key K) (V, bool) {
 	// 读锁保护，保证数据安全
 	s.mux.RLock()
 	// 使用 defer 确保即使发生错误，读锁也会被释放
@@ -82,7 +82,7 @@ func (s SafeMap[K, V]) Get(key K) (V, bool) {
 }
 
 // GetCb 方法用于获取键对应的值，并调用回调函数
-func (s SafeMap[K, V]) GetCb(key K, cb func(value V, exists bool)) {
+func (s *SafeMap[K, V]) GetCb(key K, cb func(value V, exists bool)) {
 	// 读锁保护，保证数据安全
 	s.mux.RLock()
 	// 使用 defer 确保即使发生错误，读锁也会被释放
@@ -96,7 +96,7 @@ func (s SafeMap[K, V]) GetCb(key K, cb func(value V, exists bool)) {
 }
 
 // Set 方法用于设置键值对
-func (s SafeMap[K, V]) Set(key K, value V) {
+func (s *SafeMap[K, V]) Set(key K, value V) {
 	// 写锁保护，保证数据安全
 	s.mux.Lock()
 	// 使用 defer 确保即使发生错误，写锁也会被释放
@@ -107,7 +107,7 @@ func (s SafeMap[K, V]) Set(key K, value V) {
 }
 
 // Del 方法用于删除 SafeMap 中的指定键值对
-func (s SafeMap[K, V]) Del(key K) {
+func (s *SafeMap[K, V]) Del(key K) {
 	// 写锁保护
 	s.mux.Lock()
 	// 使用 defer 确保即使发生错误，写锁也会被释放
@@ -118,7 +118,7 @@ func (s SafeMap[K, V]) Del(key K) {
 }
 
 // Update 允许通过特定的更新逻辑更新 SafeMap 中的值
-func (s SafeMap[K, V]) Update(fn func(map[K]V)) {
+func (s *SafeMap[K, V]) Update(fn func(map[K]V)) {
 	// 写锁保护
 	s.mux.Lock()
 	// 最终解锁，确保即使发生错误，写锁也会被释放
@@ -128,7 +128,7 @@ func (s SafeMap[K, V]) Update(fn func(map[K]V)) {
 	fn(s.m)
 }
 
-func (s SafeMap[K, V]) MarshalJSON() ([]byte, error) {
+func (s *SafeMap[K, V]) MarshalJSON() ([]byte, error) {
 	// 写锁保护
 	s.mux.Lock()
 	// 最终解锁，确保即使发生错误，写锁也会被释放

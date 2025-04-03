@@ -19,7 +19,7 @@ type ShardingFunc[K comparable, V any] func(key K) uint32
 // To avoid lock bottlenecks this map is dived to several (SHARD_COUNT) map shards.
 type ConcurrentMap[K comparable, V any] struct {
 	sharding ShardingFunc[K, V]
-	shards   []SafeMap[K, V]
+	shards   []*SafeMap[K, V]
 }
 
 // fnv32 函数实现了 FNV-1a 哈希算法的 32 位版本
@@ -46,7 +46,7 @@ func strfnv32[K fmt.Stringer](key K) uint32 {
 func create[K comparable, V any](sharding ShardingFunc[K, V]) ConcurrentMap[K, V] {
 	m := ConcurrentMap[K, V]{
 		sharding: sharding,
-		shards:   make([]SafeMap[K, V], SHARD_COUNT),
+		shards:   make([]*SafeMap[K, V], SHARD_COUNT),
 	}
 	for i := 0; i < SHARD_COUNT; i++ {
 		m.shards[i] = NewSafe[K, V]()
@@ -70,7 +70,7 @@ func NewWithCustom[K comparable, V any](sharding ShardingFunc[K, V]) ConcurrentM
 }
 
 // GetShard returns shard under given key
-func (m ConcurrentMap[K, V]) GetShard(key K) SafeMap[K, V] {
+func (m ConcurrentMap[K, V]) GetShard(key K) *SafeMap[K, V] {
 	return m.shards[uint(m.sharding(key))%uint(SHARD_COUNT)]
 }
 
